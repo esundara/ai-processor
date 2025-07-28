@@ -1,0 +1,10 @@
+spring:
+  ai:
+    openai:
+      api-key: API-KEY-ESUNDARA
+      chat:
+        options:
+          model: gpt-4o-mini
+app:
+  temperature: 0.7
+

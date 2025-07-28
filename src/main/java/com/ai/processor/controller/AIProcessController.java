@@ -1,0 +1,80 @@
+package com.ai.processor.controller;
+
+import com.ai.processor.dto.SummaryDTO;
+import com.ai.processor.service.AISummarizationService;
+import com.ai.processor.service.PdfTextExtractionService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@RestController
+public class AIProcessController {
+
+    private final AISummarizationService summarizationService;
+    @Autowired
+    private PdfTextExtractionService pdfTextExtractionService;
+
+    private static final Logger logger = LoggerFactory.getLogger(AIProcessController.class);
+    private String sampleText = "Sir Isaac Newton as a boy did not show any unusual talent. In school he was backward and inattentive for a number of years, until one day the boy above him in class gave him a kick in the stomach. This roused him and, to avenge the insult, he applied himself to study and quickly passed above his offending classmate. His strong spirit was aroused, and he soon took up his position at the head of his class. It was his delight to invent amusements for his classmates. He made paper kites, and carefully thought out the best shape for a kite and the number of points to which to attach the string. He would attach paper lanterns to these kites and fly them on dark nights, to the delight of his companions and the dismay of the superstitious country people, who mistook them for comets portending some great calamity. He made a toy mill to be run by a mouse, which he called the miller; a mechanical carriage, run by a handle worked by the person inside, a water-clock, the hand of which was turned by a piece of wood which fell or rose by the action of dropping water. At the age of fifteen, his mother, then a widow, removed him from school to take charge of the family estate. But the farm was not to his liking. The sheep went astray, and the cattle trod down the corn while he was perusing a book or working with some machine of his own construction. His mother wisely permitted him to return to school. After completing the course in the village school he entered Trinity College, Cambridge. Gravitation It was in the year following his graduation from Cambridge that he made his greatest discovery—that of the law of gravitation. A plague had broken out in Cambridge, to escape which Newton had retired to his estate at Woolsthorpe. Here he was sitting one day alone in the garden thinking of the wonderful power which causes all bodies to fall toward the earth. The same power, he thought, which causes an apple to fall to the ground causes bodies to fall on the tops of the highest mountains and in the deepest mines. May it not extend farther than the tops of the mountains? May it not extend even as far as the moon? And, if it does, is not this power alone able to hold the moon in its orbit, as it bends into a curve a stone thrown from the hand? There followed a long calculation requiring years to complete. Seeing that the results were likely to prove his theory of gravitation, he was so overcome that he could not finish the work. When this was done by one of his friends, it was found that Newton's thought was correct—that the force of gravitation which causes bodies to fall at the earth's surface is the same as the force which holds the moon in its orbit. As the earth and moon attract each other, so every star and planet attracts every other star and planet, and this attraction is gravitation. Colors in Sunlight About the same time that he made his first discoveries regarding gravitation, he took up the study of light with a view to improving the construction of telescopes. His first experiment was to admit sunlight into a darkened room through a circular hole in the shutter, and allow this beam of light to pass through a glass prism to a white screen beyond. He expected to see a round spot of light, but to his surprise the light was drawn out into a band of brilliant colors. He found that the light which comes from the sun is not a simple thing, but is composed of colors, and these colors were separated by the glass prism. In the same way the colors of sunlight are separated by raindrops to form a rainbow. The colors may be again mingled together by passing them through a second prism. They will then form a white light. Suppose that the light of the sun were not composed of different colors, that all parts of white light were alike, then there would be no colors in nature. All the trees and flowers would have a dull, leaden hue, and the human countenance would have the appearance of a pencil-sketch or a photographic picture. The rainbow itself would dwindle into a narrow arch of white light; the sun would shine through a gray sky, and the beauty of the setting sun would be replaced by the gray of twilight. Sunlight separated into the colors of the rainbow. The seven colors are: violet, indigo, blue, green, yellow, orange, red. One of Newton's inventions was a reflecting telescope—that is, a telescope in which a curved mirror was used in place of a lens. He made such a telescope only six inches long, which would magnify forty times. Newton was a member of the Convention Parliament, which declared James II. to be no longer King of England and tendered the crown to William and Mary. He was made a knight by Queen Anne in 1705.His knowledge of chemistry was used in the service of his country when he was Master of the Mint. It was his duty to superintend the recoining of the money of England, which had been debased by dishonest officials at the mint. He did his work without fear or favor.";
+
+    public AIProcessController(AISummarizationService summarizationService) {
+        this.summarizationService = summarizationService;
+    }
+
+    @PostMapping("/extract-summarize")
+    public ResponseEntity<SummaryDTO> extractTextFromUploadedPdf(@RequestParam("file") MultipartFile file, @RequestParam(defaultValue = "50") int maxWords) {
+        try {
+            String extractedText = pdfTextExtractionService.extractTextFromPdf(file);
+            SummaryDTO sDTO = summarizationService.getSummary(extractedText, maxWords);
+            return ResponseEntity.ok(sDTO);
+
+        } catch (IOException e) {
+            SummaryDTO sDTO = new SummaryDTO();
+            sDTO.setSummary("Error processing");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(sDTO);
+        }
+    }
+
+    @PostMapping("/summarize")
+    public SummaryDTO summarizeText(@RequestBody Map<String, String> requestBody,
+                                @RequestParam(defaultValue = "50") int maxWords) {
+        String text = requestBody.get("text");
+        logger.debug("Input JSON Received");
+        if (text == null || text.trim().isEmpty()) {
+            SummaryDTO sDTO = new SummaryDTO();
+            sDTO.setSummary("Please provide text to summarize.");
+            return sDTO;
+        }
+        return summarizationService.getSummary(text,maxWords);
+    }
+
+
+    public static boolean isValidJson(String jsonString) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.readTree(jsonString); // Or mapper.readValue(jsonString, Object.class);
+            return true;
+        } catch (JsonProcessingException e) {
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+
+}
